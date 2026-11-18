@@ -1,0 +1,9 @@
+node_modules
+dist
+.env*
+.git
+.hosting
+.submission
+assets
+LINKEDIN-DRAFT.md
+SUBMISSION-REVIEW.md

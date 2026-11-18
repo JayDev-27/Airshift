@@ -1,0 +1,31 @@
+{
+  "name": "airshift",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env server/index.mjs --dev",
+    "build": "vite build",
+    "start": "node --env-file-if-exists=.env server/index.mjs",
+    "preview": "npm run start",
+    "test": "node --test test/*.test.mjs",
+    "build:site": "npm run build && node scripts/build-site.mjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/manrope": "^5.2.8",
+    "@fontsource/ibm-plex-mono": "^5.2.7",
+    "compression": "^1.8.2",
+    "express": "^5.1.0",
+    "lucide-react": "^0.544.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "vite": "^7.1.5"
+  }
+}
