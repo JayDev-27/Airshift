@@ -2,7 +2,7 @@ import { cities } from '../src/domain.mjs';
 import { createAssistant } from './assistant.mjs';
 import { createForecastReader } from './forecast.mjs';
 
-const contentPolicy = "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'";
+const contentPolicy = "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://air-quality-api.open-meteo.com; object-src 'none'; base-uri 'self'; form-action 'self'";
 const maxBodyBytes = 12 * 1024;
 
 function json(data, status = 200) {

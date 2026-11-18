@@ -13,6 +13,7 @@ import './styles.css';
 import { AirMark, MotionSwitch, useSlidingIndicator } from './motion.jsx';
 import CityPhoto from './CityPhoto.jsx';
 import { ReplyStream, replyIntro } from './ReplyStream.jsx';
+import { forecastFromOpenMeteo } from '../server/forecast.mjs';
 import {
   band, cities, defaultProfile, demoForecast, formatHour, formatHourShort, getPlan,
   householdNames, localAnswer, normalizeProfile, sources
@@ -432,19 +433,23 @@ function App() {
       setLoading(false);
       return;
     }
-    const fetchAir = () => {
+    const fetchAir = async () => {
       setLoading(true);
       setForecastError('');
-      fetch(`/api/forecast?city=${city.id}`, { signal: controller.signal })
-        .then(response => { if (!response.ok) throw new Error(); return response.json(); })
-        .then(setAir)
-        .catch(error => {
-          if (error.name !== 'AbortError') {
-            setAir(demoForecast(city.id));
-            setForecastError('Current forecast unavailable. Showing the winter demo.');
-          }
-        })
-        .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+      try {
+        const response = await fetch(`/api/forecast?city=${city.id}`, { signal: controller.signal }).catch(() => null);
+        if (controller.signal.aborted) return;
+        const forecast = response?.ok ? await response.json() : await forecastFromOpenMeteo(city,
+          AbortSignal.any([controller.signal, AbortSignal.timeout(6500)]));
+        if (!controller.signal.aborted) setAir(forecast);
+      } catch {
+        if (!controller.signal.aborted) {
+          setAir(demoForecast(city.id));
+          setForecastError('Current forecast unavailable. Showing the winter demo.');
+        }
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
     };
     fetchAir();
     const timer = setInterval(fetchAir, 15 * 60 * 1000);

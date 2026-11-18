@@ -21,7 +21,7 @@ app.disable('x-powered-by');
 app.use(compression());
 app.use((_req, res, next) => {
   res.set('X-Content-Type-Options', 'nosniff');
-  if (!dev) res.set('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'");
+  if (!dev) res.set('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://air-quality-api.open-meteo.com; object-src 'none'; base-uri 'self'; form-action 'self'");
   next();
 });
 app.use('/api', (_req, res, next) => {
