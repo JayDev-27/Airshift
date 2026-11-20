@@ -8,7 +8,7 @@
 
 <p>
   <a href="https://airshift-smog.jtnpanjio.chatgpt.site"><img src="https://img.shields.io/badge/Live%20app-Airshift-3f5632?style=flat-square" alt="Airshift live app"></a>
-  <a href="https://github.com/satiricalguru/Airshift"><img src="https://img.shields.io/badge/Coverage-14%20Indian%20cities-687b50?style=flat-square" alt="14 Indian cities"></a>
+  <a href="https://github.com/JayDev-27/Airshift"><img src="https://img.shields.io/badge/Coverage-14%20Indian%20cities-687b50?style=flat-square" alt="14 Indian cities"></a>
   <a href="https://ai.google.dev/gemini-api/docs/structured-output"><img src="https://img.shields.io/badge/Gemini-Structured%20output-526b48?style=flat-square" alt="Gemini structured output integration"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/Code%20license-MIT-3f5632?style=flat-square" alt="MIT code license"></a>
 </p>
@@ -66,7 +66,7 @@ Built for **Prompt Wars Challenge 06**, Airshift helps families, outdoor workers
 Use Node.js 22.12 or newer.
 
 ```sh
-git clone https://github.com/satiricalguru/Airshift.git
+git clone https://github.com/JayDev-27/Airshift.git
 cd Airshift
 npm ci
 npm run dev
