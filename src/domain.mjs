@@ -59,6 +59,9 @@ export const householdNames = { family: 'Family with children', adult: 'Adult ho
 
 const sample = [305, 318, 333, 350, 368, 387, 403, 412, 396, 354, 306, 241, 181, 146, 127, 141, 172, 212, 257, 286, 314, 327, 336, 345];
 const sampleByCity = { delhi: 1, gurugram: .94, noida: 1.04, ghaziabad: 1.08, lucknow: .69, patna: .74, chandigarh: .42, jaipur: .39, mumbai: .20, pune: .16, kolkata: .44, bengaluru: .12, hyderabad: .18, chennai: .11 };
+const SEVERE_PM25 = 250;
+const PETROL_CO2_KG_PER_LITRE = 2.35;
+const MINIMUM_SHIFT_IMPROVEMENT = 5;
 export const formatHour = hour => `${hour % 12 || 12}:00 ${hour < 12 ? 'AM' : 'PM'}`;
 export const formatHourShort = hour => `${hour % 12 || 12} ${hour < 12 ? 'AM' : 'PM'}`;
 
@@ -93,15 +96,18 @@ export function band(pm) {
  */
 export function recommendedWindow(air, profile) {
   const duration = profile.outdoorMinutes / 60;
+  const slotsNeeded = Math.ceil(duration);
   const hours = air.hours;
   const startIndex = air.mode === 'demo' ? air.hour : 0;
-  const slots = [];
-  for (let index = startIndex; index + Math.ceil(duration) <= hours.length; index++) {
+  const now = Date.now();
+  let usual;
+  let best;
+  for (let index = startIndex; index + slotsNeeded <= hours.length; index++) {
     const start = hours[index];
     if (start.hour < 7 || start.hour + duration > 20) continue;
-    if (air.mode === 'live' && (start.day !== hours[0].day || start.time * 1000 < Date.now())) continue;
+    if (air.mode === 'live' && (start.day !== hours[0].day || start.time * 1000 < now)) continue;
     let total = 0;
-    for (let step = 0; step < Math.ceil(duration); step++) {
+    for (let step = 0; step < slotsNeeded; step++) {
       const point = hours[index + step];
       if (point.day !== start.day || point.hour !== start.hour + step) {
         total = NaN;
@@ -109,12 +115,66 @@ export function recommendedWindow(air, profile) {
       }
       total += point.pm * Math.min(1, duration - step);
     }
-    if (Number.isFinite(total)) slots.push({ ...start, pm: Math.round(total / duration) });
+    if (!Number.isFinite(total)) continue;
+    const slot = { ...start, pm: Math.round(total / duration) };
+    if (!usual && slot.hour === profile.usualHour) usual = slot;
+    if (!best || slot.pm < best.pm) best = slot;
   }
-  const usual = slots.find(slot => slot.hour === profile.usualHour);
-  const best = [...slots].sort((a, b) => a.pm - b.pm)[0];
   const reduction = usual?.pm && best ? Math.max(0, Math.round(100 * (usual.pm - best.pm) / usual.pm)) : null;
   return { usual, best, reduction };
+}
+
+function activityAdvice(profile, { worker, group, indoorOnly, shiftHour, reduction }) {
+  const usualTime = formatHour(profile.usualHour);
+  if (worker) {
+    if (shiftHour) return {
+      title: 'Move intense tasks to a lower-pollution hour', when: shiftHour,
+      description: `Ask to move the hardest tasks to ${shiftHour}. Keep exertion low and take breaks in a cleaner indoor space.`,
+      impact: reduction > 0 ? `~${reduction}% lower outdoor PM₂.₅ during the same-length block.` : 'Shorter, less intense outdoor work can reduce particle exposure.'
+    };
+    return {
+      title: 'Shorten higher-exertion outdoor tasks', when: 'During your shift',
+      description: 'Use shorter outdoor blocks and take breaks indoors where possible. Consider a snug, certified N95 for unavoidable particle exposure if you can wear it safely.',
+      impact: 'Shorter, less intense outdoor work can reduce particle exposure.'
+    };
+  }
+  if (indoorOnly) {
+    const activity = profile.household === 'family' ? 'play' : 'exercise';
+    return {
+      title: group ? 'Move group activities indoors' : 'Move outdoor activity indoors', when: usualTime,
+      description: group ? 'Use a cleaner indoor venue. Confirm school and local advisories before setting the schedule.'
+        : `Move the ${profile.outdoorMinutes}-minute ${activity} session to a cleaner indoor room. Keep necessary time outside brief.`,
+      impact: `${profile.outdoorMinutes} outdoor minutes avoided if this activity moves inside.`
+    };
+  }
+  if (shiftHour) return {
+    title: 'Shift activity to a lower-pollution hour', when: shiftHour,
+    description: `Try ${shiftHour} if local readings agree. Choose a quieter route away from traffic and adjust intensity as needed.`,
+    impact: reduction > 0 ? `~${reduction}% lower modeled outdoor PM₂.₅ for the same duration.` : 'Less time and lower exertion outdoors when pollution rises.'
+  };
+  return {
+    title: 'Keep activity light when air worsens', when: usualTime,
+    description: 'Check current local readings before heading out. If pollution rises, shorten the session or switch to a cleaner indoor spot.',
+    impact: 'Less time and lower exertion outdoors when pollution rises.'
+  };
+}
+
+function transportAdvice(profile, city, tailpipeKg) {
+  if (!profile.drive || !profile.km) return {
+    title: 'Keep your trip low-emission',
+    description: 'For optional errands, combine stops or use public transport where practical. During heavy pollution, keep outdoor transfers short.',
+    impact: 'Fewer kilometres driven and less idling mean less tailpipe exhaust.'
+  };
+  if (profile.transit) return {
+    title: city.metro ? 'Swap one petrol trip for the metro' : 'Swap one petrol trip for the bus',
+    description: `If service and accessibility work for you, replace your ${profile.km} km petrol round trip with ${city.metro ? 'the metro' : 'a scheduled bus'}. Keep outdoor transfers short in heavy pollution.`,
+    impact: `~${tailpipeKg.toFixed(1)} kg of petrol-car tailpipe CO₂ avoided if the full drive is replaced.`
+  };
+  return {
+    title: 'Combine errands into one trip',
+    description: 'Group nearby errands, skip optional trips, and switch off a parked engine where safe. Count only the kilometres you actually skip.',
+    impact: 'Fewer kilometres driven and less idling mean less tailpipe exhaust.'
+  };
 }
 
 /**
@@ -125,37 +185,24 @@ export function recommendedWindow(air, profile) {
  */
 export function getPlan(profile, air) {
   const city = cities.find(entry => entry.id === profile.city) ?? cities[0];
-  const { usual, best, reduction } = recommendedWindow(air, profile);
+  const outdoorWindow = recommendedWindow(air, profile);
+  const { usual, best, reduction } = outdoorWindow;
   const sensitive = profile.sensitive || ['family', 'community'].includes(profile.household);
-  const elevate = Math.max(air.mean, air.pm) > (sensitive ? 60 : 90);
-  const severe = air.mean > 250 || air.pm > 250;
-  const indoorOnly = severe || (elevate && (!best || best.pm > (sensitive ? 60 : 90)));
+  const activityThreshold = sensitive ? 60 : 90;
+  const highestReading = Math.max(air.mean, air.pm);
+  const severe = air.mean > SEVERE_PM25 || air.pm > SEVERE_PM25;
+  const indoorOnly = severe || (highestReading > activityThreshold && (!best || best.pm > activityThreshold));
   const group = profile.household === 'community';
   const worker = profile.household === 'outdoor';
-  const kg = profile.drive ? profile.km * 2.35 / profile.efficiency : 0;
+  const tailpipeKg = profile.drive && profile.transit ? profile.km * PETROL_CO2_KG_PER_LITRE / profile.efficiency : 0;
   const relevantSources = group && city.ncr ? ['school', 'caqm'] : [worker ? 'smoke' : 'school'];
-  const canShift = profile.flexible && best && (!usual || (reduction >= 5 && usual.hour !== best.hour));
+  const canShift = profile.flexible && best && (!usual || (reduction >= MINIMUM_SHIFT_IMPROVEMENT && usual.hour !== best.hour));
   const usableShift = Boolean(canShift && (!indoorOnly || worker));
+  const shiftHour = usableShift ? formatHour(best.hour) : null;
   const actions = [
-    worker ? {
-      id: 'activity', icon: 'timer', category: 'Exposure', color: 'peach',
-      title: usableShift ? 'Move intense tasks to a lower-pollution hour' : 'Shorten higher-exertion outdoor tasks',
-      when: usableShift ? formatHour(best.hour) : 'During your shift',
-      description: usableShift
-        ? `Ask to move the hardest tasks to ${formatHour(best.hour)}. Keep exertion low and take breaks in a cleaner indoor space.`
-        : 'Use shorter outdoor blocks and take breaks indoors where possible. Consider a snug, certified N95 for unavoidable particle exposure if you can wear it safely.',
-      impact: usableShift && reduction > 0 ? `~${reduction}% lower outdoor PM₂.₅ during the same-length block.` : 'Shorter, less intense outdoor work can reduce particle exposure.',
-      sources: relevantSources
-    } : {
-      id: 'activity', icon: group ? 'users' : 'activity', category: 'Exposure', color: 'peach',
-      title: indoorOnly ? (group ? 'Move group activities indoors' : 'Move outdoor activity indoors') : usableShift ? 'Shift activity to a lower-pollution hour' : 'Keep activity light when air worsens',
-      when: usableShift ? formatHour(best.hour) : formatHour(profile.usualHour),
-      description: indoorOnly
-        ? (group ? 'Use a cleaner indoor venue. Confirm school and local advisories before setting the schedule.' : `Move the ${profile.outdoorMinutes}-minute ${profile.household === 'family' ? 'play' : 'exercise'} session to a cleaner indoor room. Keep necessary time outside brief.`)
-        : usableShift ? `Try ${formatHour(best.hour)} if local readings agree. Choose a quieter route away from traffic and adjust intensity as needed.`
-          : 'Check current local readings before heading out. If pollution rises, shorten the session or switch to a cleaner indoor spot.',
-      impact: indoorOnly ? `${profile.outdoorMinutes} outdoor minutes avoided if this activity moves inside.`
-        : usableShift && reduction > 0 ? `~${reduction}% lower modeled outdoor PM₂.₅ for the same duration.` : 'Less time and lower exertion outdoors when pollution rises.',
+    {
+      id: 'activity', icon: worker ? 'timer' : group ? 'users' : 'activity', category: 'Exposure', color: 'peach',
+      ...activityAdvice(profile, { worker, group, indoorOnly, shiftHour, reduction }),
       sources: relevantSources
     },
     {
@@ -170,14 +217,8 @@ export function getPlan(profile, air) {
     },
     {
       id: 'transport', icon: city.metro && profile.transit ? 'train' : 'car', category: 'Low emissions', color: 'blue',
-      title: !profile.drive || !profile.km ? 'Keep your trip low-emission' : profile.transit ? (city.metro ? 'Swap one petrol trip for the metro' : 'Swap one petrol trip for the bus') : 'Combine errands into one trip',
       when: 'Next trip',
-      description: !profile.drive || !profile.km
-        ? 'For optional errands, combine stops or use public transport where practical. During heavy pollution, keep outdoor transfers short.'
-        : profile.transit
-          ? `If service and accessibility work for you, replace your ${profile.km} km petrol round trip with ${city.metro ? 'the metro' : 'a scheduled bus'}. Keep outdoor transfers short in heavy pollution.`
-          : 'Group nearby errands, skip optional trips, and switch off a parked engine where safe. Count only the kilometres you actually skip.',
-      impact: profile.transit && kg ? `~${kg.toFixed(1)} kg of petrol-car tailpipe CO₂ avoided if the full drive is replaced.` : 'Fewer kilometres driven and less idling mean less tailpipe exhaust.',
+      ...transportAdvice(profile, city, tailpipeKg),
       sources: city.ncr && profile.transit ? ['fuel', 'metro'] : ['fuel']
     },
     {
@@ -208,10 +249,10 @@ export function getPlan(profile, air) {
     }
   ];
   return {
-    actions, window: { usual, best, reduction }, indoorOnly, usableShift,
+    actions, window: outdoorWindow, indoorOnly, usableShift,
     initial: group ? ['activity', 'home', 'community'] : ['activity', 'home', 'transport'],
     outdoorMinutes: indoorOnly && !worker ? profile.outdoorMinutes : 0,
-    tailpipeKg: profile.transit ? kg : 0
+    tailpipeKg
   };
 }
 

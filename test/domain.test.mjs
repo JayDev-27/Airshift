@@ -116,6 +116,12 @@ describe('getPlan', () => {
     assert.match(plan.actions.find(action => action.id === 'transport').title, /low-emission/);
   });
 
+  test('offers trip consolidation without crediting an unavailable transit swap', () => {
+    const plan = getPlan({ ...defaultProfile, transit: false }, demoForecast());
+    assert.equal(plan.tailpipeKg, 0);
+    assert.equal(plan.actions.find(action => action.id === 'transport').title, 'Combine errands into one trip');
+  });
+
   test('uses a purifier action when the household has one', () => {
     const plan = getPlan({ ...defaultProfile, purifier: true }, demoForecast());
     assert.match(plan.actions.find(action => action.id === 'home').title, /HEPA/);
@@ -125,6 +131,21 @@ describe('getPlan', () => {
     const plan = getPlan({ ...defaultProfile, city: 'chennai', sensitive: false, household: 'adult' }, demoForecast('chennai'));
     assert.equal(plan.indoorOnly, false);
     assert.equal(plan.outdoorMinutes, 0);
+    assert.equal(plan.actions.find(action => action.id === 'activity').when, '2:00 PM');
+  });
+
+  test('keeps the activity time when it is already the cleanest comparable window', () => {
+    const plan = getPlan({ ...defaultProfile, city: 'chennai', usualHour: 14 }, demoForecast('chennai'));
+    assert.equal(plan.usableShift, false);
+    assert.equal(plan.actions.find(action => action.id === 'activity').title, 'Keep activity light when air worsens');
+  });
+
+  test('keeps an outdoor worker on their fixed shift and offers shorter outdoor blocks', () => {
+    const plan = getPlan({ ...defaultProfile, household: 'outdoor', flexible: false }, demoForecast());
+    assert.equal(plan.outdoorMinutes, 0);
+    const activity = plan.actions.find(action => action.id === 'activity');
+    assert.equal(activity.when, 'During your shift');
+    assert.match(activity.description, /shorter outdoor blocks/i);
   });
 
   test('community groups start with the coordination action', () => {

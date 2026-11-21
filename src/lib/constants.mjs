@@ -3,9 +3,6 @@
 /** How often a live forecast is refreshed while the page stays open. */
 export const FORECAST_REFRESH_MS = 15 * 60 * 1000;
 
-/** Browser-side timeout for the direct Open-Meteo fallback request. */
-export const DIRECT_FORECAST_TIMEOUT_MS = 6500;
-
 /** How long confirmation toasts stay on screen. */
 export const TOAST_DURATION_MS = 3300;
 
@@ -14,9 +11,6 @@ export const GUIDED_REPLY_DELAY_MS = 220;
 
 /** Scroll distance from the bottom within which the assistant keeps following new text. */
 export const FOLLOW_SCROLL_THRESHOLD_PX = 68;
-
-/** Maximum assistant question length, matching the server limit. */
-export const MAX_QUESTION_LENGTH = 600;
 
 /** localStorage key for the saved household profile and selected actions. */
 export const PREFERENCES_KEY = 'airshift-preferences';

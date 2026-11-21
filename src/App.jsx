@@ -37,14 +37,13 @@ export default function App() {
   const { profile, picked } = preferences;
   const city = cities.find(entry => entry.id === profile.city);
   const [page, setPage] = useState('overview');
-  const [mode, setMode] = useState('demo');
-  const [reload, setReload] = useState(0);
+  const [forecastRequest, setForecastRequest] = useState({ mode: 'demo', revision: 0 });
   const [modal, setModal] = useState(null);
   const [assistantTurns, setAssistantTurns] = useState([]);
   const [manualCopy, setManualCopy] = useState('');
   const [toast, setToast] = useToast();
   const gemini = useGeminiStatus();
-  const forecast = useForecast(city, mode, reload);
+  const forecast = useForecast(city, forecastRequest.mode, forecastRequest.revision);
   const air = forecast.air;
   const plan = getPlan(profile, air);
   const shareCards = SHARE_ACTION_IDS.map(id => plan.actions.find(action => action.id === id));
@@ -54,7 +53,10 @@ export default function App() {
 
   const closeModal = () => setModal(null);
   const saveProfile = (value, actionIds) => {
-    if (value.city !== city.id) setAssistantTurns([]);
+    if (value.city !== city.id) {
+      setAssistantTurns([]);
+      setForecastRequest(previous => ({ ...previous, revision: previous.revision + 1 }));
+    }
     const planAir = value.city === city.id ? air : demoForecast(value.city);
     setPreferences({ profile: value, picked: actionIds ?? getPlan(value, planAir).initial });
   };
@@ -81,10 +83,7 @@ export default function App() {
   const forecastControls = {
     loading: forecast.loading,
     error: forecast.error,
-    setMode: value => {
-      if (value === mode && value === 'live') setReload(previous => previous + 1);
-      setMode(value);
-    }
+    setMode: mode => setForecastRequest(previous => ({ mode, revision: previous.revision + 1 }))
   };
   const shared = { plan, profile, picked, actions };
 

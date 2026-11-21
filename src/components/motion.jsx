@@ -42,12 +42,12 @@ export function MotionSwitch({ label, value, options, onChange, className = '' }
     onChange(next.key);
     track.current.querySelectorAll('button')[options.indexOf(next)].focus();
   }
-  // Arrow keys move between the group's buttons (roving focus); each option stays a native button.
+  // Arrow keys move between available buttons. aria-disabled preserves focus while a request loads.
   // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
   return <div ref={track} className={`segmented motion-switch ${className}`} role="group" aria-label={label} onKeyDown={moveSelection}>
     <span className="sliding-thumb" aria-hidden="true" />
     {options.map(({ key, label: text, icon: Icon, disabled }) => <button key={key} type="button" className="segment"
-      aria-pressed={key === value} disabled={disabled} onClick={() => onChange(key)}>
+      aria-pressed={key === value} aria-disabled={disabled || undefined} onClick={() => { if (!disabled) onChange(key); }}>
       {Icon && <Icon size={14} strokeWidth={1.7} />}<span>{text}</span>
     </button>)}
   </div>;

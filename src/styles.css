@@ -17,7 +17,7 @@
 body { margin: 0; min-width: 320px; }
 button, select, input, textarea { font: inherit; }
 button { cursor: pointer; }
-button:disabled { cursor: wait; opacity: .68; }
+button:disabled, .segment[aria-disabled="true"] { cursor: wait; opacity: .68; }
 a { color: inherit; }
 .skip-link { position: fixed; z-index: 10; left: 12px; top: 12px; transform: translateY(-150%); padding: 9px 12px; border-radius: 7px; background: #f6faeb; color: #25321f; font-size: 13px; font-weight: 800; }
 .skip-link:focus { transform: none; }
@@ -168,7 +168,7 @@ input[type="checkbox"] { accent-color: #536e38; width: 15px; min-height: 15px; m
 .city-list small { color: var(--muted); margin-top: 2px; font-size: 10px; }
 .methodology { display: grid; gap: 13px; }
 .evidence-card .methodology { padding: 0; }
-.methodology h3 { font-size: 14px; margin: 0 0 4px; }
+.methodology :is(h2, h3) { font-size: 14px; margin: 0 0 4px; }
 .methodology p { color: #5b6558; font-size: 13px; line-height: 1.55; }
 .source-list { display: grid; gap: 5px; }
 .source-list a { display: flex; align-items: center; gap: 8px; font-size: 12px; text-decoration: none; background: #f4f6ec; border: 1px solid var(--line); color: #4a6437; border-radius: 7px; padding: 7px 8px; }

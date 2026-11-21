@@ -76,7 +76,7 @@ Open [localhost:5173](http://localhost:5173). The demo, regional forecasts, plan
 
 | Command | Purpose |
 | --- | --- |
-| `npm test` | Run 70 planner, client, forecast, assistant, API, security and hosted-runtime tests |
+| `npm test` | Run planner, client, forecast, assistant, API, security and hosted-runtime tests |
 | `npm run test:coverage` | Run the tests with a coverage report |
 | `npm run lint` | ESLint with React Hooks and strict `jsx-a11y` accessibility rules |
 | `npm run check` | Lint, test and build, as CI does |
@@ -108,12 +108,12 @@ flowchart LR
 ```text
 src/
   domain.mjs        Plan engine: cities, sources, profile validation, windows, actions, guided answers
-  lib/              Pure UI helpers (briefing text, purifier sizing, constraints, preferences, API client)
+  lib/              Shared forecast provider and assistant contract, client API calls, preferences and formatting
   hooks/            useForecast, useGeminiStatus, useToast
   components/       Layout, overview cards, chart, action list, dialogs, assistant drawer, 3D model
   pages/            Overview, daily plan, indoor air, community and sources views
   App.jsx           State and page composition
-server/             Express server, Worker adapter, Gemini assistant, forecast reader, security headers
+server/             Express and Worker adapters, shared API handler, Gemini integration, forecast cache and headers
 test/               node:test suites for the engine, client helpers, forecast, API and headers
 ```
 
@@ -121,10 +121,10 @@ test/               node:test suites for the engine, client helpers, forecast, A
 
 | Area | How it is handled |
 | --- | --- |
-| **Code quality** | The pure planning engine in [`src/domain.mjs`](src/domain.mjs) is shared by the UI, the Node server and the Worker. UI logic lives in tested pure helpers in [`src/lib`](src/lib), data loading in hooks, and rendering in small single-purpose components. Exported functions carry JSDoc, and ESLint runs in [CI](.github/workflows/ci.yml). |
+| **Code quality** | The UI and both runtimes share the [planning engine](src/domain.mjs) and [assistant contract](src/lib/assistant-contract.mjs). Express and the Worker use one [API handler](server/api.mjs). Lint rules enforce the browser/server import boundary in [CI](.github/workflows/ci.yml). |
 | **Security** | Server-side key, allowlisted model output, body and length limits, rate limits, and a shared hardening header set. See [SECURITY.md](SECURITY.md). |
 | **Efficiency** | The 3D scene is lazy-loaded behind a still preview. Hashed bundles are cached for a year, text is compressed, and forecasts are cached per city for five minutes with one shared in-flight request. |
-| **Testing** | `node:test` covers every city and household type, CPCB band edges, window selection, guided routing including Hindi keywords, forecast validation, Gemini fallbacks and allowlisting, rate limiting, and headers on both runtimes. Line coverage is 100% for the domain and server modules. |
+| **Testing** | `node:test` covers city and household plans, CPCB band edges, window selection, guided routing, forecast validation and fallback, Gemini output validation, rate limiting, and HTTP behavior across both runtimes. The coverage command reports the planner, client helpers and in-process server modules. |
 | **Accessibility** | Skip link, native `<dialog>` focus handling, keyboard-operable selectors with roving focus, a readings table alternative to the chart, `prefers-reduced-motion` support, live status regions, and strict `jsx-a11y` linting. |
 
 ## License

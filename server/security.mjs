@@ -30,6 +30,3 @@ export const securityHeaders = Object.freeze({
 
 /** Maximum accepted JSON request body, in bytes. */
 export const maxBodyBytes = 12 * 1024;
-
-/** Maximum accepted assistant question length, in characters. */
-export const maxQuestionLength = 600;

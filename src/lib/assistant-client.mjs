@@ -1,4 +1,5 @@
 import { getPlan, localAnswer } from '../domain.mjs';
+import { normalizeReply } from './assistant-contract.mjs';
 import { applyConstraints, isFollowUp } from './planning.mjs';
 
 /**
@@ -9,8 +10,10 @@ import { applyConstraints, isFollowUp } from './planning.mjs';
  * @throws {DOMException} AbortError when the request is cancelled.
  */
 export async function requestAnswer({ question, recent, profile, air, gemini, signal, fetcher = fetch }) {
-  const guided = localAnswer(question, getPlan(profile, air), isFollowUp(question) ? recent.at(-1) : undefined);
-  if (!gemini) return guided;
+  signal?.throwIfAborted();
+  const plan = getPlan(profile, air);
+  const guided = () => localAnswer(question, plan, isFollowUp(question) ? recent.at(-1) : undefined);
+  if (!gemini) return guided();
   try {
     const response = await fetcher('/api/assistant', {
       method: 'POST',
@@ -18,12 +21,14 @@ export async function requestAnswer({ question, recent, profile, air, gemini, si
       signal,
       body: JSON.stringify({ question, context: recent, profile, air: { pm: air.pm, mean: air.mean } })
     });
-    if (!response.ok) return guided;
+    if (!response.ok) return guided();
     const data = await response.json();
-    return data.mode === 'gemini' ? data : guided;
+    const selection = data?.mode === 'gemini' && normalizeReply(data, plan.actions.map(action => action.id));
+    return selection ? { mode: 'gemini', ...selection } : guided();
   } catch (error) {
-    if (error.name === 'AbortError') throw error;
-    return guided;
+    signal?.throwIfAborted();
+    if (error?.name === 'AbortError') throw error;
+    return guided();
   }
 }
 

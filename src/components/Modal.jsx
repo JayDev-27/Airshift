@@ -1,13 +1,14 @@
-import React, { useEffect, useId, useRef } from 'react';
+import React, { useId, useLayoutEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 
 /** Native modal dialog with focus trapping, Escape to close and backdrop dismissal. */
 export function Modal({ title, onClose, children, drawer = false }) {
   const dialog = useRef(null);
   const heading = useId();
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = dialog.current;
     element.showModal();
+    // Close while the dialog is still attached so the browser restores focus to its opener.
     return () => element.close();
   }, []);
   return (

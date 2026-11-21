@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, MapPin, Send } from 'lucide-react';
 import { cities } from '../domain.mjs';
 import { buildReply, requestAnswer } from '../lib/assistant-client.mjs';
-import { FOLLOW_SCROLL_THRESHOLD_PX, GUIDED_REPLY_DELAY_MS, MAX_QUESTION_LENGTH } from '../lib/constants.mjs';
+import { MAX_CONTEXT_QUESTIONS, MAX_QUESTION_LENGTH } from '../lib/assistant-contract.mjs';
+import { FOLLOW_SCROLL_THRESHOLD_PX, GUIDED_REPLY_DELAY_MS } from '../lib/constants.mjs';
 import { groupMessage } from '../lib/planning.mjs';
 import { Modal } from './Modal.jsx';
 import { AirMark } from './motion.jsx';
@@ -78,7 +79,7 @@ export function Assistant({ profile, air, gemini, turns, setTurns, onClose, onAp
     const controller = new AbortController();
     requestRef.current = controller;
     const id = crypto.randomUUID();
-    const recent = turns.slice(-2).map(turn => turn.text);
+    const recent = turns.slice(-MAX_CONTEXT_QUESTIONS).map(turn => turn.text);
     resumeFollowing();
     setActiveReply(id);
     setTurns(previous => [...previous, { id, text }]);

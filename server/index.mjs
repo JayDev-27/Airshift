@@ -3,9 +3,7 @@ import compression from 'compression';
 import { createServer } from 'node:http';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { cities } from '../src/domain.mjs';
-import { createAssistant } from './assistant.mjs';
-import { createForecastReader } from './forecast.mjs';
+import { apiHeaders, createApiHandler } from './api.mjs';
 import { maxBodyBytes, securityHeaders } from './security.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -13,10 +11,18 @@ const app = express();
 const httpServer = createServer(app);
 const dev = process.argv.includes('--dev');
 const port = Number(process.env.PORT || (dev ? 5173 : 8080));
-const geminiKey = process.env.GEMINI_API_KEY;
-const model = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
-const fetchForecast = createForecastReader();
-const ask = createAssistant(geminiKey, model);
+const handleApi = createApiHandler();
+const readRawBody = express.raw({ limit: maxBodyBytes, inflate: false, type: () => true });
+
+function readBody(req, res) {
+  return new Promise(resolve => {
+    readRawBody(req, res, error => {
+      if (!error) return resolve({ bytes: req.body });
+      const status = [400, 413, 415].includes(error.status) ? error.status : 500;
+      resolve({ status });
+    });
+  });
+}
 
 app.disable('x-powered-by');
 app.use(compression());
@@ -26,39 +32,28 @@ app.use((_req, res, next) => {
   res.set(dev ? headers : { ...headers, 'Content-Security-Policy': policy });
   next();
 });
-app.use('/api', (_req, res, next) => {
-  res.set('Cache-Control', 'no-store');
-  next();
-}, express.json({ limit: maxBodyBytes }));
-
-app.get('/api/status', (_req, res) => res.json({ gemini: Boolean(geminiKey), ...(geminiKey && { model }) }));
-app.get('/api/forecast', async (req, res) => {
-  const city = cities.find(entry => entry.id === req.query.city);
-  if (!city) return res.status(400).json({ error: 'Choose a supported city.' });
-  try {
-    res.json(await fetchForecast(city));
-  } catch {
-    res.status(503).json({ error: 'The forecast could not be loaded. Check CPCB for local readings.' });
-  }
-});
-
-app.post('/api/assistant', async (req, res) => {
+app.use('/api', async (req, res) => {
+  res.set(apiHeaders);
   const connection = new AbortController();
   const cancelDisconnected = () => { if (!res.writableFinished) connection.abort(); };
   res.once('close', cancelDisconnected);
   try {
-    const result = await ask(req.body, connection.signal);
-    if (!connection.signal.aborted) res.status(result.status).json(result.data);
+    const { status, data } = await handleApi({
+      method: req.method,
+      url: new URL(req.originalUrl, 'http://localhost'),
+      contentType: req.get('content-type'),
+      contentEncoding: req.get('content-encoding'),
+      readBody: () => readBody(req, res),
+      signal: connection.signal
+    }, process.env);
+    if (!connection.signal.aborted) res.status(status).json(data);
   } finally {
     res.off('close', cancelDisconnected);
   }
 });
 
-app.use('/api', (_req, res) => res.status(404).json({ error: 'Unknown endpoint.' }));
 app.use('/api', (error, _req, res, next) => {
   if (res.headersSent) return next(error);
-  if (error.type === 'entity.too.large') return res.status(413).json({ error: 'Request body is too large.' });
-  if (error.type === 'entity.parse.failed') return res.status(400).json({ error: 'Send valid JSON.' });
   return res.status(500).json({ error: 'Request failed.' });
 });
 if (dev) {

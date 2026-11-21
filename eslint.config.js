@@ -12,7 +12,6 @@ export default [
     languageOptions: {
       ecmaVersion: 2024,
       sourceType: 'module',
-      globals: { ...globals.browser, ...globals.node },
       parserOptions: { ecmaFeatures: { jsx: true } }
     },
     settings: { react: { version: 'detect' } },
@@ -30,5 +29,14 @@ export default [
       'no-var': 'error',
       'prefer-const': 'error'
     }
-  }
+  },
+  {
+    files: ['src/**/*.{js,mjs,jsx}'],
+    languageOptions: { globals: globals.browser },
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [{ group: ['**/server/**'], message: 'Share runtime-independent code from src/lib.' }] }]
+    }
+  },
+  { files: ['server/**/*.mjs'], languageOptions: { globals: globals.worker } },
+  { files: ['server/index.mjs', 'scripts/**/*.mjs', 'test/**/*.mjs'], languageOptions: { globals: globals.nodeBuiltin } }
 ];

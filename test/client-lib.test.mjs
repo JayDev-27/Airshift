@@ -147,6 +147,7 @@ describe('requestAnswer', () => {
     for (const fetcher of [
       async () => new Response(null, { status: 503 }),
       async () => Response.json({ mode: 'local' }),
+      async () => Response.json({ mode: 'gemini', actions: ['unknown'] }),
       async () => { throw new TypeError('offline'); }
     ]) {
       assert.equal((await requestAnswer({ ...base, gemini: true, fetcher })).mode, 'local');
@@ -156,6 +157,16 @@ describe('requestAnswer', () => {
   test('propagates cancellation', async () => {
     const fetcher = async () => { throw new DOMException('aborted', 'AbortError'); };
     await assert.rejects(requestAnswer({ ...base, gemini: true, fetcher }), { name: 'AbortError' });
+  });
+
+  test('validates model selections at the browser boundary', async () => {
+    const fetcher = async () => Response.json({
+      mode: 'gemini', actions: ['home', 'unknown', 'home', 'windows'], format: 'unknown',
+      constraints: ['no-transit', 'invented', 'no-transit'], extra: 'unexpected'
+    });
+    assert.deepEqual(await requestAnswer({ ...base, gemini: true, fetcher }), {
+      mode: 'gemini', actions: ['home', 'windows'], format: 'checklist', constraints: ['no-transit']
+    });
   });
 });
 

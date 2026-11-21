@@ -45,7 +45,9 @@ describe('hosted Worker security headers', () => {
   });
 
   test('rejects malformed JSON and unknown cities', async () => {
-    const malformed = await handler(new Request('https://airshift.example/api/assistant', { method: 'POST', body: '{' }));
+    const malformed = await handler(new Request('https://airshift.example/api/assistant', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{'
+    }));
     assert.equal(malformed.status, 400);
     assert.equal((await handler(new Request('https://airshift.example/api/forecast?city=../etc'))).status, 400);
   });

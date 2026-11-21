@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { afterEach, describe, test } from 'node:test';
-import { createForecastReader, forecastFromOpenMeteo } from '../server/forecast.mjs';
+import { createForecastReader } from '../server/forecast.mjs';
 import { createAssistant } from '../server/assistant.mjs';
+import { createSiteFetch } from '../server/worker.mjs';
+import { forecastFromOpenMeteo } from '../src/lib/open-meteo.mjs';
+import { loadLiveForecast } from '../src/lib/forecast-client.mjs';
 
 const city = { id: 'delhi', lat: 28.61, lon: 77.21 };
 const nativeFetch = globalThis.fetch;
@@ -65,6 +68,87 @@ describe('createForecastReader', () => {
     await assert.rejects(read(city));
     assert.equal(loads, 2);
   });
+
+  test('starts the cache lifetime after completion and never replaces a pending request', async () => {
+    let now = 0;
+    let finish;
+    let loads = 0;
+    const read = createForecastReader(() => {
+      loads++;
+      return new Promise(resolve => { finish = resolve; });
+    }, () => now);
+    const first = read(city);
+    await Promise.resolve();
+    now = 300_001;
+    assert.equal(read(city), first);
+    finish({ pm: 1 });
+    await first;
+    assert.equal(read(city), first);
+    now += 300_000;
+    const next = read(city);
+    await Promise.resolve();
+    assert.equal(loads, 2);
+    finish({ pm: 2 });
+    assert.deepEqual(await next, { pm: 2 });
+  });
+});
+
+describe('loadLiveForecast', () => {
+  test('uses a complete, recent API response for the requested city', async () => {
+    provider();
+    const air = await forecastFromOpenMeteo(city);
+    const actual = await loadLiveForecast(city, new AbortController().signal, async url => {
+      assert.equal(url, '/api/forecast?city=delhi');
+      return Response.json(air);
+    });
+    assert.deepEqual(actual, air);
+  });
+
+  test('falls back to the provider after malformed, mismatched or stale API responses', async () => {
+    const calls = provider();
+    const air = await forecastFromOpenMeteo(city);
+    for (const apiResponse of [
+      new Response('<html>Airshift</html>'),
+      Response.json({ ...air, hours: [null] }),
+      Response.json({ ...air, city: 'pune' }),
+      Response.json({ ...air, validAt: Date.now() - 3 * 3600 * 1000 }),
+      Response.json({ ...air, hours: air.hours.map(point => ({ ...point, day: 'invalid' })) }),
+      new Response(null, { status: 503 })
+    ]) {
+      const actual = await loadLiveForecast(city, new AbortController().signal, (url, options) =>
+        String(url).startsWith('/api/') ? apiResponse : globalThis.fetch(url, options));
+      assert.deepEqual(actual, air);
+    }
+    assert.equal(calls.length, 7);
+  });
+
+  test('does not start the fallback once the request has been cancelled', async () => {
+    const controller = new AbortController();
+    let attempts = 0;
+    const request = loadLiveForecast(city, controller.signal, async () => {
+      attempts++;
+      controller.abort();
+      return new Response(null, { status: 503 });
+    });
+    await assert.rejects(request, { name: 'AbortError' });
+    assert.equal(attempts, 1);
+  });
+});
+
+test('the shared forecast endpoint returns validated data and a retryable provider failure', async () => {
+  const worker = createSiteFetch({});
+  const request = new Request('https://airshift.example/api/forecast?city=delhi');
+  provider({ status: 502 });
+  const unavailable = await worker(request);
+  assert.equal(unavailable.status, 503);
+  assert.equal(unavailable.headers.get('cache-control'), 'no-store');
+
+  provider();
+  const result = await worker(request);
+  assert.equal(result.status, 200);
+  const forecast = await result.json();
+  assert.equal(forecast.city, 'delhi');
+  assert.equal(forecast.hours.length, 24);
 });
 
 describe('createAssistant without Gemini', () => {
@@ -94,6 +178,16 @@ describe('createAssistant with Gemini', () => {
   test('falls back when the model only returns unknown actions', async () => {
     globalThis.fetch = async () => Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ actions: ['delete-db'], format: 'checklist', constraints: [] }) }] } }] });
     const result = await createAssistant('key', 'model')({ question: 'Windows?' });
+    assert.equal(result.data.degraded, true);
+  });
+
+  test('retains relevant previous context when Gemini fails on a follow-up', async () => {
+    globalThis.fetch = async () => new Response(null, { status: 503 });
+    const result = await createAssistant('key', 'model')({
+      question: 'What about cooking?', context: ['I do not have transit', '   ', 'I don’t have an air purifier']
+    });
+    assert.deepEqual(result.data.actions, ['kitchen']);
+    assert.deepEqual(result.data.constraints, ['no-purifier']);
     assert.equal(result.data.degraded, true);
   });
 

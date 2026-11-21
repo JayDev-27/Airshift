@@ -1,4 +1,5 @@
 import { sources } from '../domain.mjs';
+import { CONSTRAINT_OVERRIDES } from './assistant-contract.mjs';
 import { CADR_PER_SQUARE_METRE, ROOM_AREA_RANGE } from './constants.mjs';
 
 const istDate = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeZone: 'Asia/Kolkata' });
@@ -43,13 +44,11 @@ export function purifierCadr(area) {
  * @param {string[]} [constraints]
  */
 export function applyConstraints(profile, constraints = []) {
-  const overrides = {
-    'no-purifier': { purifier: false },
-    'no-transit': { transit: false },
-    'fixed-time': { flexible: false },
-    sensitive: { sensitive: true }
-  };
-  return constraints.reduce((next, flag) => ({ ...next, ...overrides[flag] }), { ...profile });
+  const adjusted = { ...profile };
+  for (const flag of constraints) {
+    if (Object.hasOwn(CONSTRAINT_OVERRIDES, flag)) Object.assign(adjusted, CONSTRAINT_OVERRIDES[flag]);
+  }
+  return adjusted;
 }
 
 /** Whether a question continues the previous one ("what about…", "and…"). */

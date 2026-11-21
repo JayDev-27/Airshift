@@ -11,7 +11,12 @@ function CityPicker({ current, onPick }) {
   return (
     <div className="city-list">
       {cities.map(entry => (
-        <button key={entry.id} className={entry.id === current ? 'chosen' : ''} onClick={() => onPick(entry.id)}>
+        <button
+          key={entry.id}
+          className={entry.id === current ? 'chosen' : ''}
+          aria-current={entry.id === current ? 'true' : undefined}
+          onClick={() => onPick(entry.id)}
+        >
           <img src={thumbnail(entry.id)} alt="" width={48} height={38} loading="lazy" />
           <span><strong>{entry.name}</strong><small>{entry.region}</small></span>
           {entry.id === current && <Check size={16} />}

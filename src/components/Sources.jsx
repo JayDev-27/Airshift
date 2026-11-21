@@ -28,10 +28,10 @@ export function SourceList({ ids }) {
 }
 
 /** How the readings and impact estimates are produced. */
-export function Methodology({ all = false }) {
+export function Methodology({ all = false, sectionHeading: Heading = 'h3' }) {
   return (
     <div className="methodology">
-      {METHOD_SECTIONS.map(([title, text]) => <section key={title}><h3>{title}</h3><p>{text}</p></section>)}
+      {METHOD_SECTIONS.map(([title, text]) => <section key={title}><Heading>{title}</Heading><p>{text}</p></section>)}
       <SourceList ids={all ? Object.keys(sources) : CORE_SOURCES} />
     </div>
   );

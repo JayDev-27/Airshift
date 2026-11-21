@@ -9,7 +9,7 @@ import { MotionSwitch } from '../components/motion.jsx';
 
 function DataModeSwitch({ air, loading, onModeChange, onCustomize }) {
   const options = [
-    { key: 'demo', label: 'Winter demo', icon: FlaskConical, disabled: loading && air.mode === 'demo' },
+    { key: 'demo', label: 'Winter demo', icon: FlaskConical },
     { key: 'live', label: loading ? 'Loading…' : 'Current forecast', icon: Radio, disabled: loading }
   ];
   return (

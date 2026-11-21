@@ -21,7 +21,7 @@ const pageById = id => PAGES.find(page => page.id === id);
 export function Sidebar({ page, household, onNavigate, onEditProfile }) {
   const rail = useSlidingIndicator(page, 'button[aria-current="page"]');
   return (
-    <aside className="sidebar">
+    <div className="sidebar">
       <button className="brand-button" aria-label="Airshift home" onClick={() => onNavigate('overview')}><Brand /></button>
       <nav aria-label="Main navigation" ref={rail} className="sliding-rail">
         <span className="sliding-thumb" aria-hidden="true" />
@@ -45,7 +45,7 @@ export function Sidebar({ page, household, onNavigate, onEditProfile }) {
           <ChevronRight size={15} className="profile-chevron" />
         </button>
       </div>
-    </aside>
+    </div>
   );
 }
 

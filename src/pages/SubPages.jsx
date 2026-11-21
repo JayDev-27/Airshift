@@ -91,5 +91,5 @@ export function CommunityPage({ shareCards, briefing, picked, actions }) {
 
 /** Every source and assumption. */
 export function EvidencePage() {
-  return <section className="card evidence-card"><Methodology all /></section>;
+  return <section className="card evidence-card"><Methodology all sectionHeading="h2" /></section>;
 }

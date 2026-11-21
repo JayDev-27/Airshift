@@ -4,6 +4,7 @@ import { once } from 'node:events';
 import { test } from 'node:test';
 import { cities, band, defaultProfile, demoForecast, getPlan, localAnswer, normalizeProfile, recommendedWindow } from '../src/domain.mjs';
 import { photoCredits } from '../src/city-photos.mjs';
+import { createSiteFetch } from '../server/worker.mjs';
 
 test('every supported city has a distinct photo, a full demo day and sourced plan actions', () => {
   const photoLinks = new Set();
@@ -113,10 +114,42 @@ test('production API validates inputs, protects responses and restricts Gemini o
   assert.equal((await (await send(JSON.stringify({ question: 'Simulate outage' }))).json()).degraded, true);
   for (let index = 0; index < 28; index++) assert.equal((await send(payload)).status, 200);
   assert.equal((await send(payload)).status, 429);
+
+  await t.test('the Express and Worker APIs return the same validation errors', async () => {
+    const worker = createSiteFetch({});
+    const assistant = { method: 'POST', headers: { 'Content-Type': 'application/json; charset=utf-8' } };
+    const cases = [
+      ['/api', {}, 404],
+      ['/api/status', { method: 'POST' }, 404],
+      ['/API/FORECAST/?city=delhi&city=mumbai', {}, 400],
+      ['/api/assistant', { ...assistant, body: '{' }, 400],
+      ['/api/assistant', { ...assistant, body: 'null' }, 400],
+      ['/api/assistant', { ...assistant, body: Buffer.from([0x22, 0xff, 0x22]) }, 400],
+      ['/api/assistant', { ...assistant, body: JSON.stringify({ question: 'é'.repeat(7000) }) }, 413],
+      ['/api/assistant', { ...assistant, body: payload, headers: { 'Content-Type': 'text/plain' } }, 415],
+      ['/api/assistant', { ...assistant, body: payload, headers: { ...assistant.headers, 'Content-Encoding': 'gzip' } }, 415]
+    ];
+    for (const [path, options, expectedStatus] of cases) {
+      const [expressResponse, workerResponse] = await Promise.all([
+        fetch(address + path, options),
+        worker(new Request(`https://airshift.example${path}`, options))
+      ]);
+      assert.equal(expressResponse.status, expectedStatus, path);
+      assert.equal(workerResponse.status, expectedStatus, path);
+      assert.equal(workerResponse.headers.get('cache-control'), expressResponse.headers.get('cache-control'), path);
+      assert.deepEqual(await workerResponse.json(), await expressResponse.json(), path);
+    }
+    for (const response of await Promise.all([
+      fetch(address + '/api/status', { method: 'HEAD' }),
+      worker(new Request('https://airshift.example/api/status', { method: 'HEAD' }))
+    ])) {
+      assert.equal(response.status, 200);
+      assert.equal(await response.text(), '');
+    }
+  });
 });
 
 test('hosted Worker serves the UI and mirrors guided API behavior', async () => {
-  const { createSiteFetch } = await import('../server/worker.mjs');
   const handler = createSiteFetch({ '/index.html': { type: 'text/html', data: Buffer.from('<title>Airshift</title>').toString('base64') } });
   const sheet = await handler(new Request('https://airshift.example/'));
   assert.equal(sheet.headers.get('content-type'), 'text/html');
@@ -124,11 +157,11 @@ test('hosted Worker serves the UI and mirrors guided API behavior', async () => 
   const status = await handler(new Request('https://airshift.example/api/status'));
   assert.deepEqual(await status.json(), { gemini: false });
   const question = await handler(new Request('https://airshift.example/api/assistant', {
-    method: 'POST', body: JSON.stringify({ question: 'Can I open my windows?' })
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: 'Can I open my windows?' })
   }));
   assert.deepEqual(await question.json(), { mode: 'local' });
   const oversized = await handler(new Request('https://airshift.example/api/assistant', {
-    method: 'POST', body: 'x'.repeat(13_000)
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: 'x'.repeat(13_000)
   }));
   assert.equal(oversized.status, 413);
   assert.equal((await handler(new Request('https://airshift.example/assets/missing.js'))).status, 404);
