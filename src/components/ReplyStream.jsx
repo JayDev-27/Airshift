@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowUpRight, Check, ClipboardList, Share2 } from 'lucide-react';
-import { recommendedWindow, sources } from './domain.mjs';
+import { recommendedWindow, sources } from '../domain.mjs';
 import { AirMark } from './motion.jsx';
 
 const split = text => text.match(/\S+\s*/gu) ?? [];

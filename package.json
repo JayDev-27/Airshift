@@ -13,7 +13,7 @@
     "preview": "npm run start",
     "lint": "eslint .",
     "test": "node --test test/*.test.mjs",
-    "test:coverage": "node --test --experimental-test-coverage --test-coverage-include=src/domain.mjs --test-coverage-include=server/*.mjs test/*.test.mjs",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-include=src/domain.mjs --test-coverage-include=src/lib/*.mjs --test-coverage-include=server/*.mjs test/*.test.mjs",
     "check": "npm run lint && npm test && npm run build",
     "build:site": "npm run build && node scripts/build-site.mjs"
   },

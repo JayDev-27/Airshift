@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Camera, ArrowUpRight } from 'lucide-react';
-import { photoCredits } from './city-photos.mjs';
+import { photoCredits } from '../city-photos.mjs';
 
 export default function CityPhoto({ city }) {
   const [layers, setLayers] = useState({ current: null, previous: null });

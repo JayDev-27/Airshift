@@ -76,7 +76,7 @@ Open [localhost:5173](http://localhost:5173). The demo, regional forecasts, plan
 
 | Command | Purpose |
 | --- | --- |
-| `npm test` | Run 51 planner, forecast, assistant, API, security and hosted-runtime tests |
+| `npm test` | Run 70 planner, client, forecast, assistant, API, security and hosted-runtime tests |
 | `npm run test:coverage` | Run the tests with a coverage report |
 | `npm run lint` | ESLint with React Hooks and strict `jsx-a11y` accessibility rules |
 | `npm run check` | Lint, test and build, as CI does |
@@ -103,11 +103,25 @@ flowchart LR
 - **Grounded assistant.** Gemini returns structured action IDs and practical constraints. Airshift validates them and calculates impact from explicit inputs. [Gemini structured output](https://ai.google.dev/gemini-api/docs/structured-output)
 - **Evidence and limitations.** [Methodology and credits](docs/methodology.md) · [Audit](AUDIT.md) · [Build narrative](BUILD-NARRATIVE.md)
 
+## Project structure
+
+```text
+src/
+  domain.mjs        Plan engine: cities, sources, profile validation, windows, actions, guided answers
+  lib/              Pure UI helpers (briefing text, purifier sizing, constraints, preferences, API client)
+  hooks/            useForecast, useGeminiStatus, useToast
+  components/       Layout, overview cards, chart, action list, dialogs, assistant drawer, 3D model
+  pages/            Overview, daily plan, indoor air, community and sources views
+  App.jsx           State and page composition
+server/             Express server, Worker adapter, Gemini assistant, forecast reader, security headers
+test/               node:test suites for the engine, client helpers, forecast, API and headers
+```
+
 ## Quality
 
 | Area | How it is handled |
 | --- | --- |
-| **Code quality** | The pure planning engine in [`src/domain.mjs`](src/domain.mjs) is shared by the UI, the Node server and the Worker. The server modules are small and single-purpose, exported functions carry JSDoc, and ESLint runs in [CI](.github/workflows/ci.yml). |
+| **Code quality** | The pure planning engine in [`src/domain.mjs`](src/domain.mjs) is shared by the UI, the Node server and the Worker. UI logic lives in tested pure helpers in [`src/lib`](src/lib), data loading in hooks, and rendering in small single-purpose components. Exported functions carry JSDoc, and ESLint runs in [CI](.github/workflows/ci.yml). |
 | **Security** | Server-side key, allowlisted model output, body and length limits, rate limits, and a shared hardening header set. See [SECURITY.md](SECURITY.md). |
 | **Efficiency** | The 3D scene is lazy-loaded behind a still preview. Hashed bundles are cached for a year, text is compressed, and forecasts are cached per city for five minutes with one shared in-flight request. |
 | **Testing** | `node:test` covers every city and household type, CPCB band edges, window selection, guided routing including Hindi keywords, forecast validation, Gemini fallbacks and allowlisting, rate limiting, and headers on both runtimes. Line coverage is 100% for the domain and server modules. |
