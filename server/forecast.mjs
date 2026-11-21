@@ -1,3 +1,11 @@
+/**
+ * Fetch the CAMS PM₂.₅ forecast for a city from Open-Meteo and keep it only when
+ * the past 24 hours and next 24 hours are complete, hourly and current.
+ * @param {{ id: string, lat: number, lon: number }} city
+ * @param {AbortSignal} [signal]
+ * @returns {Promise<{ city: string, mode: 'live', pm: number, mean: number, hour: number, validAt: number, hours: Array<{ day: string, hour: number, pm: number, time: number }> }>}
+ * @throws {Error} When the provider fails or the data is stale or incomplete.
+ */
 export async function forecastFromOpenMeteo(city, signal = AbortSignal.timeout(6500)) {
   const params = new URLSearchParams({
     latitude: String(city.lat), longitude: String(city.lon), domains: 'cams_global',
@@ -34,12 +42,17 @@ export async function forecastFromOpenMeteo(city, signal = AbortSignal.timeout(6
   return air;
 }
 
-export function createForecastReader() {
+/**
+ * Cache forecasts per city for five minutes and share one in-flight request
+ * between concurrent callers. Failed requests are not cached.
+ * @param {typeof forecastFromOpenMeteo} [load]
+ */
+export function createForecastReader(load = forecastFromOpenMeteo) {
   const airCache = new Map();
   return async function readForecast(city) {
     const cached = airCache.get(city.id);
     if (cached && Date.now() < cached.expiry) return cached.promise;
-    const promise = forecastFromOpenMeteo(city);
+    const promise = load(city);
     airCache.set(city.id, { promise, expiry: Date.now() + 5 * 60 * 1000 });
     try {
       return await promise;

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { cities } from '../src/domain.mjs';
 import { createAssistant } from './assistant.mjs';
 import { createForecastReader } from './forecast.mjs';
+import { maxBodyBytes, securityHeaders } from './security.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const app = express();
@@ -20,14 +21,15 @@ const ask = createAssistant(geminiKey, model);
 app.disable('x-powered-by');
 app.use(compression());
 app.use((_req, res, next) => {
-  res.set('X-Content-Type-Options', 'nosniff');
-  if (!dev) res.set('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://air-quality-api.open-meteo.com; object-src 'none'; base-uri 'self'; form-action 'self'");
+  // Vite's dev server injects inline scripts for HMR, so the strict policy applies to production only.
+  const { 'Content-Security-Policy': policy, ...headers } = securityHeaders;
+  res.set(dev ? headers : { ...headers, 'Content-Security-Policy': policy });
   next();
 });
 app.use('/api', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
-}, express.json({ limit: '12kb' }));
+}, express.json({ limit: maxBodyBytes }));
 
 app.get('/api/status', (_req, res) => res.json({ gemini: Boolean(geminiKey), ...(geminiKey && { model }) }));
 app.get('/api/forecast', async (req, res) => {
@@ -39,7 +41,6 @@ app.get('/api/forecast', async (req, res) => {
     res.status(503).json({ error: 'The forecast could not be loaded. Check CPCB for local readings.' });
   }
 });
-
 
 app.post('/api/assistant', async (req, res) => {
   const connection = new AbortController();

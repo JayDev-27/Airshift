@@ -35,6 +35,12 @@ export const defaultProfile = {
   flexible: true, drive: true, km: 12, efficiency: 14, outdoorMinutes: 30, usualHour: 8
 };
 
+/**
+ * Coerce untrusted profile input to a valid planning profile. Unknown keys are
+ * dropped, enums fall back to defaults and numbers are clamped to safe ranges.
+ * @param {unknown} [input]
+ * @returns {typeof defaultProfile}
+ */
 export function normalizeProfile(input = {}) {
   const base = { ...defaultProfile };
   if (!input || typeof input !== 'object') return base;
@@ -56,6 +62,10 @@ const sampleByCity = { delhi: 1, gurugram: .94, noida: 1.04, ghaziabad: 1.08, lu
 export const formatHour = hour => `${hour % 12 || 12}:00 ${hour < 12 ? 'AM' : 'PM'}`;
 export const formatHourShort = hour => `${hour % 12 || 12} ${hour < 12 ? 'AM' : 'PM'}`;
 
+/**
+ * Synthetic, clearly labeled winter-smog day scaled for each city.
+ * @param {string} [city]
+ */
 export function demoForecast(city = 'delhi') {
   const levels = sample.map(value => Math.round(value * (sampleByCity[city] ?? 1)));
   return {
@@ -64,6 +74,11 @@ export function demoForecast(city = 'delhi') {
   };
 }
 
+/**
+ * Map PM₂.₅ (µg/m³) to the CPCB National AQI category for that pollutant.
+ * @param {number} pm
+ * @returns {[label: string, tone: string]}
+ */
 export function band(pm) {
   return [
     [30, 'Good', 'good'], [60, 'Satisfactory', 'good'], [90, 'Moderate', 'moderate'],
@@ -71,6 +86,11 @@ export function band(pm) {
   ].find(([upper]) => Math.round(pm) <= upper)?.slice(1) ?? ['Unavailable', 'moderate'];
 }
 
+/**
+ * Find the cleanest same-day outdoor window of the profile's duration between
+ * 7 AM and 8 PM, skipping past hours, gaps and windows that cross midnight.
+ * @returns {{ usual?: object, best?: object, reduction: number | null }}
+ */
 export function recommendedWindow(air, profile) {
   const duration = profile.outdoorMinutes / 60;
   const hours = air.hours;
@@ -97,6 +117,12 @@ export function recommendedWindow(air, profile) {
   return { usual, best, reduction };
 }
 
+/**
+ * Build the reviewed action list and impact estimates for a profile and forecast.
+ * Every figure is computed from explicit inputs so it can be explained in the UI.
+ * @param {typeof defaultProfile} profile
+ * @param {{ mode: 'demo' | 'live', pm: number, mean: number, hour?: number, hours: object[] }} air
+ */
 export function getPlan(profile, air) {
   const city = cities.find(entry => entry.id === profile.city) ?? cities[0];
   const { usual, best, reduction } = recommendedWindow(air, profile);
@@ -189,6 +215,14 @@ export function getPlan(profile, air) {
   };
 }
 
+/**
+ * Guided (offline) assistant: keyword routing to reviewed actions and practical
+ * constraints, carrying context from the preceding question when the latest one
+ * does not name a topic.
+ * @param {string} question
+ * @param {ReturnType<typeof getPlan>} plan
+ * @param {string} [precedingQuestion]
+ */
 export function localAnswer(question, plan, precedingQuestion) {
   const text = question.toLowerCase();
   const ids = [];

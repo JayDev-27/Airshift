@@ -1,16 +1,19 @@
 import { cities } from '../src/domain.mjs';
 import { createAssistant } from './assistant.mjs';
 import { createForecastReader } from './forecast.mjs';
+import { maxBodyBytes, securityHeaders } from './security.mjs';
 
-const contentPolicy = "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://air-quality-api.open-meteo.com; object-src 'none'; base-uri 'self'; form-action 'self'";
-const maxBodyBytes = 12 * 1024;
-
+/** Serialize an API response with no-store caching and the shared security headers. */
 function json(data, status = 200) {
-  return Response.json(data, { status, headers: {
-    'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': contentPolicy
-  } });
+  return Response.json(data, { status, headers: { ...securityHeaders, 'Cache-Control': 'no-store' } });
 }
 
+/**
+ * Read a JSON body while enforcing the byte limit on the stream itself,
+ * so an oversized upload is cancelled before it is buffered.
+ * @param {Request} request
+ * @returns {Promise<{ data?: unknown, status?: 400 | 413 }>}
+ */
 async function readBody(request) {
   if (!request.body) return { status: 400 };
   const reader = request.body.getReader();
@@ -34,6 +37,11 @@ async function readBody(request) {
   }
 }
 
+/**
+ * Build the fetch handler for the hosted Worker runtime.
+ * @param {Record<string, { type: string, data: string }>} assets Base64 static files keyed by URL path.
+ * @returns {(request: Request, env?: { GEMINI_API_KEY?: string, GEMINI_MODEL?: string }) => Promise<Response>}
+ */
 export function createSiteFetch(assets) {
   const forecast = createForecastReader();
   let service;
@@ -67,16 +75,15 @@ export function createSiteFetch(assets) {
       return json({ error: 'Unknown endpoint.' }, 404);
     }
 
-    if (!['GET', 'HEAD'].includes(request.method)) return new Response('Method not allowed', { status: 405 });
+    if (!['GET', 'HEAD'].includes(request.method)) return new Response('Method not allowed', { status: 405, headers: { ...securityHeaders, Allow: 'GET, HEAD' } });
     const asset = assets[path === '/' ? '/index.html' : path];
-    if (!asset) return new Response('File not found', { status: 404 });
+    if (!asset) return new Response('File not found', { status: 404, headers: securityHeaders });
     const bytes = request.method === 'HEAD' ? null : Uint8Array.from(atob(asset.data), letter => letter.charCodeAt(0));
     return new Response(bytes, { headers: {
+      ...securityHeaders,
       'Content-Type': asset.type,
       'Cache-Control': path.startsWith('/assets/') ? 'public, max-age=31536000, immutable'
         : path === '/' || path === '/index.html' ? 'no-cache' : 'public, max-age=300',
-      'Content-Security-Policy': contentPolicy,
-      'X-Content-Type-Options': 'nosniff'
     } });
   };
 }
