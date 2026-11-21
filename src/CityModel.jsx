@@ -12,7 +12,7 @@ const tones = { good: '#a6ce67', moderate: '#ddc351', poor: '#e9b05d', 'very-poo
 let atlasRequest;
 
 function atlasData() {
-  atlasRequest ??= fetch('/atlas/old-delhi.json').then(response => {
+  atlasRequest ??= fetch(`${import.meta.env.BASE_URL}atlas/old-delhi.json`).then(response => {
     if (!response.ok) throw new Error('City model unavailable');
     return response.json();
   }).catch(error => { atlasRequest = null; throw error; });

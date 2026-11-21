@@ -9,8 +9,8 @@ export default function CityPhoto({ city }) {
   const behind = layers.current === city.id ? layers.previous : layers.current;
   return <>
     <div className="city-photo-stage">
-      {behind && <img key={`background-${behind}`} className="city-photo prior" src={`/cities/${behind}.webp`} alt="" aria-hidden="true" />}
-      <img key={city.id} className={`city-photo${layers.current === city.id ? ' visible' : ''}`} src={`/cities/${city.id}.webp`}
+      {behind && <img key={`background-${behind}`} className="city-photo prior" src={`${import.meta.env.BASE_URL}cities/${behind}.webp`} alt="" aria-hidden="true" />}
+      <img key={city.id} className={`city-photo${layers.current === city.id ? ' visible' : ''}`} src={`${import.meta.env.BASE_URL}cities/${city.id}.webp`}
         alt={`${credit.landmark}, ${city.name}`} fetchPriority="high"
         onLoad={() => setLayers(previous => previous.current === city.id ? previous : { current: city.id, previous: previous.current })}
         onError={() => setUnavailable(city.id)} />
