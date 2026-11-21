@@ -1,14 +1,12 @@
 services:
   - type: web
     name: airshift
-    runtime: node
+    runtime: docker
     plan: free
-    buildCommand: npm ci && npm run build
-    startCommand: npm start
+    region: singapore
+    dockerfilePath: ./Dockerfile
     healthCheckPath: /api/status
     envVars:
-      - key: NODE_VERSION
-        value: "22"
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL
