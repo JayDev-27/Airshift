@@ -76,7 +76,10 @@ Open [localhost:5173](http://localhost:5173). The demo, regional forecasts, plan
 
 | Command | Purpose |
 | --- | --- |
-| `npm test` | Run planner, API, and hosted-runtime checks |
+| `npm test` | Run 51 planner, forecast, assistant, API, security and hosted-runtime tests |
+| `npm run test:coverage` | Run the tests with a coverage report |
+| `npm run lint` | ESLint with React Hooks and strict `jsx-a11y` accessibility rules |
+| `npm run check` | Lint, test and build, as CI does |
 | `npm run build` | Build the browser application |
 | `npm start` | Serve the production build at [localhost:8080](http://localhost:8080) |
 | `npm run build:site` | Package the browser app and API as a deployable Worker |
@@ -97,6 +100,16 @@ flowchart LR
 - **Observation and prediction.** The current forecast uses Open-Meteo and CAMS at regional resolution. CPCB station readings are linked for local decisions. The synthetic winter scenario is labeled throughout. [Open-Meteo](https://open-meteo.com/en/docs/air-quality-api) · [CPCB](https://airquality.cpcb.gov.in/AQI_India/)
 - **Grounded assistant.** Gemini returns structured action IDs and practical constraints. Airshift validates them and calculates impact from explicit inputs. [Gemini structured output](https://ai.google.dev/gemini-api/docs/structured-output)
 - **Evidence and limitations.** [Methodology and credits](docs/methodology.md) · [Audit](AUDIT.md) · [Build narrative](BUILD-NARRATIVE.md)
+
+## Quality
+
+| Area | How it is handled |
+| --- | --- |
+| **Code quality** | The pure planning engine in [`src/domain.mjs`](src/domain.mjs) is shared by the UI, the Node server and the Worker. The server modules are small and single-purpose, exported functions carry JSDoc, and ESLint runs in [CI](.github/workflows/ci.yml). |
+| **Security** | Server-side key, allowlisted model output, body and length limits, rate limits, and a shared hardening header set. See [SECURITY.md](SECURITY.md). |
+| **Efficiency** | The 3D scene is lazy-loaded behind a still preview. Hashed bundles are cached for a year, text is compressed, and forecasts are cached per city for five minutes with one shared in-flight request. |
+| **Testing** | `node:test` covers every city and household type, CPCB band edges, window selection, guided routing including Hindi keywords, forecast validation, Gemini fallbacks and allowlisting, rate limiting, and headers on both runtimes. Line coverage is 100% for the domain and server modules. |
+| **Accessibility** | Skip link, native `<dialog>` focus handling, keyboard-operable selectors with roving focus, a readings table alternative to the chart, `prefers-reduced-motion` support, live status regions, and strict `jsx-a11y` linting. |
 
 ## License
 
