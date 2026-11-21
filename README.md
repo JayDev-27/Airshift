@@ -7,15 +7,15 @@
 <p><strong>Turn an air-quality forecast into a plan your household can use.</strong></p>
 
 <p>
-  <a href="https://airshift-smog.jtnpanjio.chatgpt.site"><img src="https://img.shields.io/badge/Live%20app-Airshift-3f5632?style=flat-square" alt="Airshift live app"></a>
+  <a href="https://airshift.onrender.com"><img src="https://img.shields.io/badge/Live%20app-Airshift-3f5632?style=flat-square" alt="Airshift live app"></a>
   <a href="https://github.com/JayDev-27/Airshift"><img src="https://img.shields.io/badge/Coverage-14%20Indian%20cities-687b50?style=flat-square" alt="14 Indian cities"></a>
   <a href="https://ai.google.dev/gemini-api/docs/structured-output"><img src="https://img.shields.io/badge/Gemini-Structured%20output-526b48?style=flat-square" alt="Gemini structured output integration"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/Code%20license-MIT-3f5632?style=flat-square" alt="MIT code license"></a>
 </p>
 
-<p><a href="https://airshift-smog.jtnpanjio.chatgpt.site"><strong>Open Airshift</strong></a> · <a href="#quick-start">Quick start</a> · <a href="#see-it-in-action">Demo</a> · <a href="docs/methodology.md">Methodology</a></p>
+<p><a href="https://airshift.onrender.com"><strong>Open Airshift</strong></a> · <a href="#quick-start">Quick start</a> · <a href="#see-it-in-action">Demo</a> · <a href="docs/methodology.md">Methodology</a></p>
 
-<a href="https://airshift-smog.jtnpanjio.chatgpt.site"><img src="assets/overview.webp" alt="Airshift overview showing an interactive Old Delhi model, a severe PM₂.₅ sample, hourly readings, and projected household impact" width="100%"></a>
+<a href="https://airshift.onrender.com"><img src="assets/overview.webp" alt="Airshift overview showing an interactive Old Delhi model, a severe PM₂.₅ sample, hourly readings, and projected household impact" width="100%"></a>
 
 </div>
 
@@ -83,6 +83,8 @@ Open [localhost:5173](http://localhost:5173). The demo, regional forecasts, plan
 | `npm run build` | Build the browser application |
 | `npm start` | Serve the production build at [localhost:8080](http://localhost:8080) |
 | `npm run build:site` | Package the browser app and API as a deployable Worker |
+
+The live app runs on Render from the [`Dockerfile`](Dockerfile), described by [`render.yaml`](render.yaml).
 
 Copy `.env.example` to `.env` and set `GEMINI_API_KEY` to enable the Gemini assistant on the server. The default model is Gemini 3.5 Flash-Lite. The hosted demo currently uses guided mode. [Google AI Studio keys](https://aistudio.google.com/apikey)
 
