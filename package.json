@@ -11,7 +11,10 @@
     "build": "vite build",
     "start": "node --env-file-if-exists=.env server/index.mjs",
     "preview": "npm run start",
+    "lint": "eslint .",
     "test": "node --test test/*.test.mjs",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-include=src/domain.mjs --test-coverage-include=server/*.mjs test/*.test.mjs",
+    "check": "npm run lint && npm test && npm run build",
     "build:site": "npm run build && node scripts/build-site.mjs"
   },
   "dependencies": {
@@ -25,7 +28,19 @@
     "three": "^0.187.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "esbuild": "^0.28.2",
+    "eslint": "^9.39.5",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
     "vite": "^7.1.5"
+  },
+  "description": "Turn an urban PM2.5 forecast into a practical daily plan for households, outdoor workers and community groups.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JayDev-27/Airshift.git"
   }
 }

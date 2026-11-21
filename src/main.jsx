@@ -2,7 +2,7 @@ import React, { lazy, Suspense, useEffect, useId, useRef, useState } from 'react
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import {
-  Activity, ArrowDownRight, ArrowLeftRight, ArrowRight, ArrowUpRight, BookOpen, Car, Check,
+  Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BookOpen, Car, Check,
   ChevronDown, ChevronRight, ClipboardList, Clock3, CookingPot, FlaskConical, List,
   House, LayoutGrid, Leaf, LocateFixed, MapPin, Radio, Send, Share2, SlidersHorizontal,
   Timer, TrainFront, TriangleAlert, Users, Wind, X
@@ -54,6 +54,8 @@ function Modal({ title, onClose, children, drawer = false }) {
     return () => element.close();
   }, []);
   return (
+    // Escape is handled natively through onCancel; the click handler only adds backdrop dismissal for pointer users.
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
     <dialog ref={dialog} className={drawer ? 'dialog drawer' : 'dialog'} aria-labelledby={heading}
       onCancel={event => { event.preventDefault(); onClose(); }}
       onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
@@ -207,6 +209,8 @@ function HourlyOutlook({ air, best }) {
       ]} onChange={setView} className="compact" />
     </div>
     {view === 'chart' ? <ForecastChart key={`${air.city}-${air.mode}`} air={air} best={best} /> :
+      // A focusable scroll region lets keyboard users scroll the table (WCAG 2.1.1, axe scrollable-region-focusable).
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
       <div className="readings" tabIndex={0} role="region" aria-label="Scrollable hourly PM2.5 readings">
         <table>
           <thead><tr><th scope="col">Local time</th><th scope="col">PM₂.₅ (µg/m³)</th></tr></thead>
@@ -316,7 +320,7 @@ function Assistant({ profile, air, gemini, turns, setTurns, onClose, onApply, on
     if (!text || busy) return;
     const controller = new AbortController();
     request.current = controller;
-    const id = crypto.randomUUID?.() ?? String(Date.now());
+    const id = crypto.randomUUID();
     follow.current = true;
     setActiveReply(id);
     setTurns(previous => [...previous, { id, text }]);
@@ -427,6 +431,8 @@ function App() {
   }, []);
   useEffect(() => {
     const controller = new AbortController();
+    // Switching city or mode resets the forecast state before the next load starts.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setForecastError('');
     if (mode === 'demo') {
       setAir(demoForecast(city.id));
@@ -454,6 +460,8 @@ function App() {
     fetchAir();
     const timer = setInterval(fetchAir, 15 * 60 * 1000);
     return () => { controller.abort(); clearInterval(timer); };
+    // `city` is looked up from `city.id`, so the id is the complete dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [city.id, mode, reload]);
   useEffect(() => {
     if (!toast) return;

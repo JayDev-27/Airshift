@@ -28,13 +28,14 @@ export function replyIntro(answer, city, air) {
 export function ReplyStream({ result, immediate, onApply, onShare }) {
   const words = useMemo(() => [result.intro, ...result.cards.map(action => action.description)].map(split), [result]);
   const total = words.reduce((sum, sentence) => sum + sentence.length, 0);
+  // Word offsets where each paragraph starts, so rendering never mutates a running total.
+  const offsets = useMemo(() => words.reduce((starts, sentence, index) =>
+    [...starts, starts[index] + sentence.length], [0]), [words]);
+  const [reducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const [visible, setVisible] = useState(0);
-  const complete = immediate || visible >= total;
+  const complete = immediate || reducedMotion || visible >= total;
   useEffect(() => {
-    if (immediate || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setVisible(total);
-      return;
-    }
+    if (immediate || reducedMotion) return;
     let count = 0;
     const interval = window.setInterval(() => {
       count += 1;
@@ -42,20 +43,19 @@ export function ReplyStream({ result, immediate, onApply, onShare }) {
       if (count >= total) window.clearInterval(interval);
     }, 44);
     return () => window.clearInterval(interval);
-  }, [immediate, total]);
+  }, [immediate, reducedMotion, total]);
 
   const count = complete ? total : visible;
   const read = (index, consumed) => words[index].slice(0, Math.max(0, count - consumed)).join('');
-  let consumed = words[0].length;
+  const introEnd = offsets[1];
   return <div className="assistant-result" role="group" aria-label="Airshift reply" aria-busy={!complete}>
     <div className="reply-byline"><AirMark className="reply-mark" active={!complete} /><strong>Airshift</strong><span>{result.mode === 'gemini' ? 'Gemini' : 'Guided mode'}</span></div>
-    <p className={`reply-intro${count < consumed ? ' typing-line' : ''}`} aria-hidden={!complete}>{read(0, 0)}</p>
-    {result.constraints.length > 0 && count >= consumed && <p className="question-constraints">I planned around {result.constraints.map(flag => constraintNames[flag]).join(', ')}.</p>}
+    <p className={`reply-intro${count < introEnd ? ' typing-line' : ''}`} aria-hidden={!complete}>{read(0, 0)}</p>
+    {result.constraints.length > 0 && count >= introEnd && <p className="question-constraints">I planned around {result.constraints.map(flag => constraintNames[flag]).join(', ')}.</p>}
     {result.cards.map((action, index) => {
-      const start = consumed;
-      consumed += words[index + 1].length;
+      const start = offsets[index + 1];
       if (count <= start) return null;
-      const finished = count >= consumed;
+      const finished = count >= offsets[index + 2];
       return <article className="answer-card" key={action.id}>
         <div className="action-meta">{result.format === 'schedule' ? action.when : action.category}</div>
         <h3>{action.title}</h3>
